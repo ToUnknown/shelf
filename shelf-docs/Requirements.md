@@ -2,7 +2,7 @@
 
 ## Overview
 
-A private web app named "Shelf" for me and my friend (we live together). It centralizes all household products and uses automatic processing to update inventory and generate recipe ideas. Hosting: Vercel. Database: Convex.
+A private web app named "Shelf" for one household (owner + invited members). It centralizes all household products and uses automatic processing to update inventory and generate recipe ideas. Hosting: Vercel. Database: Convex.
 
 ## Goals
 
@@ -12,8 +12,11 @@ A private web app named "Shelf" for me and my friend (we live together). It cent
 
 ## Users & Access
 
-- Only two users (me + friend), pre-created accounts.
-- Auth is a shared password.
+- Single household shared by all members.
+- Owner creates the household via "Create account".
+- Owner can add member emails in Settings; added emails are reserved and cannot be used for Create account or Log in.
+- Members use "Member of the household" flow; first time they set a password, later they log in with email + password in that same section.
+- Each user has their own password.
 - App stores a session token on the device so the password is only needed on new devices.
 - User display names are short (e.g., "Max", "Roma") and shown in logs.
 - Each user provides their own API key in Settings; it is saved and synced to that user across devices.
@@ -32,12 +35,20 @@ A private web app named "Shelf" for me and my friend (we live together). It cent
 
 ### 1) Authentication
 
-- Private access for two people only.
+- Private access for a single household (owner + invited members).
+- Auth screen has 3 options: Create account, Log in, Member of the household.
+- Create account is for the household owner.
+- Owner adds member emails in Settings; those emails are reserved.
+- Reserved member emails are not allowed in Create account or Log in.
+- Member of the household flow:
+  - First time: enter email, then set a new password.
+  - Next times: enter email + password in the Member of the household section.
 
 ### 1.1) Settings
 
 - Each user can enter their own API key.
 - API key must be stored per-user and synced across their devices.
+- Owner can add member emails (reserve access to the household).
 
 ### 2) Product Inventory
 
@@ -51,6 +62,8 @@ Manual management:
 
 - Add, edit, remove products.
 - Copy all products or all products from a category (copy format: name + amount only).
+- Manual edit UI is a list of all products with search and inline editable fields.
+- Amount inputs are validated before saving.
 
 ### 3) Tags & Categories
 
@@ -67,7 +80,8 @@ Manual management:
 - Model must know about all current products to generate correct changes.
 - Model: GPT-5.2.
 - Unknown items should be auto-added.
-- Changes apply immediately, with a single-step "Revert last change" button.
+- Changes apply immediately, with a single-step "Revert last automatic change" button.
+- Manual edits are not revertible (user fixes directly in manual mode).
 - Input can be multiple languages but is stored in English.
 
 ### 5) Suggestions Tab
@@ -102,13 +116,28 @@ Model output must be JSON:
 ### 8) Change Log
 
 - Separate tab to view a log of edits with who made each change.
+- Store full before/after snapshots for each change to support undo of the last automatic change.
 
 ## Data Model (Draft)
 
+- Household
+  - id
+  - ownerUserId
+  - createdAt
 - User
   - id
-  - name/email
+  - email
   - displayName (short, e.g., "Max")
+  - householdId
+  - role (owner/member)
+  - apiKey
+- MemberInvite
+  - id
+  - householdId
+  - email
+  - invitedAt
+  - invitedBy (user id)
+  - status (pending/accepted)
 - Product
   - id
   - name
@@ -158,9 +187,9 @@ Model output must be JSON:
 1. Foundation
    - App skeleton, routing, basic UI layout.
    - Convex setup and schemas.
-   - Shared-password auth, session token storage, and pre-created users.
+   - Owner account + member invite flow, session token storage, and reserved emails.
    - Display names (Max/Roma) wired into UI header + logs.
-   - Password is hardcoded; no reset/rotation flow.
+   - Separate passwords per user; no reset/rotation flow.
 
 2. Inventory MVP
    - CRUD for products.
