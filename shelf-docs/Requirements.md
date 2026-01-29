@@ -9,6 +9,7 @@ A private web app named "Shelf" for one household (owner + invited members). It 
 - Keep a shared, up-to-date list of products with quantities.
 - Quickly add/remove items manually or via "Automatic mode" (no AI branding).
 - Generate recipe suggestions and full recipes based on current products.
+- Automatically maintain a shopping list based on low-stock items.
 
 ## Users & Access
 
@@ -57,6 +58,7 @@ Each product has:
 - Name (e.g., "Fresh tomatoes")
 - Tag (e.g., "#vegetable")
 - Amount as a structured pair: { value, unit } (e.g., 200 g or 3 pcs)
+- Optional minAmount: threshold to consider the product low-stock
 
 Manual management:
 
@@ -64,6 +66,18 @@ Manual management:
 - Copy all products or all products from a category (copy format: name + amount only).
 - Manual edit UI is a list of all products with search and inline editable fields.
 - Amount inputs are validated before saving.
+- Optional low-stock threshold per product.
+
+### 2.1) Shopping List
+
+- Separate tab named "Shopping list".
+- Items can be added manually.
+- Products detected as low-stock are automatically added to the shopping list.
+- Each item contains: name, amount (value + unit), checked state.
+- Items can be checked off without affecting inventory.
+- Optional action: add checked items to inventory.
+- Removing an item from the shopping list does not affect the product inventory.
+
 
 ### 3) Tags & Categories
 
@@ -111,7 +125,7 @@ Model output must be JSON:
 - List of products needed with amounts (name, amount, tag).
 - Separated preparation tasks (e.g., cutting, peeling).
 - Step-by-step guide (without preparation tasks).
-  Images for suggestions/recipes are generated via gpt-image-1 (low-quality option).
+- Images for suggestions/recipes are generated via gpt-image-1 (low-quality option).
 
 ### 8) Change Log
 
@@ -146,10 +160,22 @@ Model output must be JSON:
   - amount
     - value (number)
     - unit (string)
+  - minAmount (optional)
   - amountGrams (number, optional normalized weight in grams)
   - amountMilliliters (number, optional normalized volume in milliliters)
   - updatedAt
   - updatedBy (user id)
+- ShoppingListItem
+  - id
+  - householdId
+  - productId (optional)
+  - name
+  - amount
+    - value (number)
+    - unit (string)
+  - checked (boolean)
+  - createdAt
+  - updatedAt
 - Suggestion
   - id
   - title
@@ -181,6 +207,7 @@ Model output must be JSON:
 - Quantity normalization to milliliters for volume; display as liters if >= 1000 ml (e.g., 1300 ml → 1.3 l).
 - Duplicate items should merge quantities (same product identity).
 - Product identity and merging are decided by the model based on DB context (e.g., "tomatoes" should match existing "Tomatoes").
+- Low-stock detection runs automatically on product updates.
 
 ## Project Plan (Draft)
 
@@ -197,6 +224,13 @@ Model output must be JSON:
    - Amount structured fields + normalization to grams/ml + display formatting.
    - Copy buttons (all products / by category).
    - Merge quantities on duplicate items.
+   - Low-stock threshold per product.
+
+2.5 Shopping List
+   - Shopping list data model and CRUD.
+   - Low-stock detection logic.
+   - Auto-fill shopping list from low-stock products.
+   - Manual add, check, and remove UI.
 
 3. Automatic Mode
    - Prompt design + API integration for GPT-5.2.
