@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npx convex deploy --cmd \"npm run build\" --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "outputDirectory": ".next"
+}

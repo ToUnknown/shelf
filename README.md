@@ -1,5 +1,25 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Shelf MVP
+
+Manual product inventory backed by Convex. The MVP supports adding, editing, and deleting products in a shared list.
+
+### Convex setup
+
+1. Start Convex locally:
+  ```bash
+  npx convex dev
+  ```
+2. Copy the generated `NEXT_PUBLIC_CONVEX_URL` into `.env.local`.
+
+For Vercel, the build command injects `NEXT_PUBLIC_CONVEX_URL` during deploy.
+
+### Vercel deploy
+
+The build command in `vercel.json` runs `npx convex deploy` and injects the deployment URL
+into `NEXT_PUBLIC_CONVEX_URL`. Add `CONVEX_DEPLOY_KEY` as a Vercel environment variable
+so the deploy can authenticate.
+
 ## Getting Started
 
 First, run the development server:
