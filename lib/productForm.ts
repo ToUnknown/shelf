@@ -12,9 +12,12 @@ export type ProductDraft = {
 const allowedUnits = ["pcs", "g", "ml"] as const;
 type AllowedUnit = (typeof allowedUnits)[number];
 
+const DEFAULT_TAG = "#other";
+const LEGACY_TAG = "#uncategorized";
+
 export const defaultDraft = (): ProductDraft => ({
   name: "",
-  tag: "#uncategorized",
+  tag: "",
   amountValue: "",
   amountUnit: "pcs",
   minValue: "",
@@ -44,6 +47,16 @@ const normalizeForEdit = (
   return { value, unit: "pcs" };
 };
 
+const normalizeTag = (rawTag: string) => {
+  const trimmed = rawTag.trim();
+  if (!trimmed) return DEFAULT_TAG;
+  const normalized = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  if (normalized.toLowerCase() === LEGACY_TAG) {
+    return DEFAULT_TAG;
+  }
+  return normalized;
+};
+
 export const draftFromProduct = (product: Product): ProductDraft => {
   const amount = normalizeForEdit(product.amount.value, product.amount.unit);
   const minAmount = product.minAmount
@@ -52,18 +65,12 @@ export const draftFromProduct = (product: Product): ProductDraft => {
 
   return {
     name: product.name,
-    tag: product.tag,
+    tag: normalizeTag(product.tag),
     amountValue: String(amount.value),
     amountUnit: amount.unit,
     minValue: minAmount ? String(minAmount.value) : "",
     minUnit: minAmount?.unit ?? amount.unit,
   };
-};
-
-const normalizeTag = (rawTag: string) => {
-  const trimmed = rawTag.trim();
-  if (!trimmed) return "#uncategorized";
-  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
 };
 
 const parseAmount = (value: string, unit: string): ProductAmount | null => {
