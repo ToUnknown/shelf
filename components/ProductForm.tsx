@@ -28,7 +28,13 @@ export default function ProductForm({
   const [submitting, setSubmitting] = useState(false);
 
   const unitPlaceholder =
-    draft.amountUnit === "g" ? "grams" : draft.amountUnit === "ml" ? "milliliters" : "pcs";
+    draft.amountUnit === "g"
+      ? "grams"
+      : draft.amountUnit === "ml"
+        ? "milliliters"
+        : "pcs";
+  const shortSubmitLabel = submitLabel.split(" ")[0] ?? submitLabel;
+  const submitLabelMain = submitLabel.replace(/\s*changes\s*/gi, " ").trim();
 
   const updateDraft = (patch: Partial<ProductDraft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -59,9 +65,9 @@ export default function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
-      <div className="grid gap-4 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-[0_20px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="grid gap-4 rounded-2xl border border-black/10 bg-white/80 p-4 shadow-[0_20px_45px_rgba(15,23,42,0.08)] sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex-1">
+          <div className="w-full sm:flex-1">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Product
             </label>
@@ -72,7 +78,7 @@ export default function ProductForm({
               className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
-          <div className="w-40">
+          <div className="w-full sm:w-40">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Tag
             </label>
@@ -85,8 +91,8 @@ export default function ProductForm({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-28">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="min-w-0">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Amount
             </label>
@@ -100,7 +106,7 @@ export default function ProductForm({
               className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
-          <div className="w-40">
+          <div className="min-w-0">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Unit
             </label>
@@ -132,7 +138,7 @@ export default function ProductForm({
               </span>
             </div>
           </div>
-          <div className="w-28">
+          <div className="min-w-0">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Min
             </label>
@@ -144,51 +150,44 @@ export default function ProductForm({
               className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
-          <div className="flex h-[54px] items-end">
-            <p className="text-xs text-slate-400">
-              Min uses {unitPlaceholder}.
-            </p>
-          </div>
         </div>
 
-        {error ? (
-          <p className="text-sm text-rose-600">{error}</p>
-        ) : (
-          <p className="text-xs text-slate-500">
-            Choose pcs, grams, or milliliters. Min amount is optional.
-          </p>
-        )}
+        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
       </div>
 
-      <div
-        className={`flex flex-wrap items-center gap-3 ${
-          leadingAction
-            ? "justify-between"
-            : actionsAlign === "right"
-              ? "justify-end"
-              : "justify-start"
-        }`}
-      >
-        {leadingAction ? (
-          <div className="flex items-center gap-3">{leadingAction}</div>
-        ) : null}
-        <div className={`flex items-center gap-3 ${leadingAction ? "ml-auto" : ""}`}>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? "Saving..." : submitLabel}
-          </button>
+      <div className="grid grid-cols-3 items-center gap-2 sm:gap-3">
+        <div className="justify-self-start">
+          {leadingAction ? leadingAction : null}
+        </div>
+        <div className="justify-self-center">
           <button
             type="button"
             onClick={() => {
               setDraft(initialDraft ?? defaultDraft());
               setError(null);
             }}
-            className="text-sm font-semibold text-slate-500 hover:text-slate-700"
+            className="whitespace-nowrap text-sm font-semibold text-slate-500 hover:text-slate-700"
           >
             Reset
+          </button>
+        </div>
+        <div className="justify-self-end">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="whitespace-nowrap rounded-full bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-2 sm:text-sm"
+          >
+            {submitting ? (
+              <>
+                <span className="sm:hidden">Saving</span>
+                <span className="hidden sm:inline">Saving...</span>
+              </>
+            ) : (
+              <>
+                <span className="sm:hidden">{shortSubmitLabel}</span>
+              <span className="hidden sm:inline">{submitLabelMain}</span>
+              </>
+            )}
           </button>
         </div>
       </div>

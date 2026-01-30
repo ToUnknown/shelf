@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { UIEvent } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import ProductForm from "../components/ProductForm";
@@ -18,38 +17,7 @@ export default function Home() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isListScrolled, setIsListScrolled] = useState(false);
-
-  useEffect(() => {
-    const root = document.documentElement;
-
-    const updateToolbarInset = () => {
-      const viewport = window.visualViewport;
-      if (!viewport) {
-        root.style.setProperty("--safari-ui-bottom", "0px");
-        return;
-      }
-      const bottomInset = Math.max(
-        0,
-        window.innerHeight - (viewport.height + viewport.offsetTop),
-      );
-      root.style.setProperty("--safari-ui-bottom", `${bottomInset}px`);
-    };
-
-    updateToolbarInset();
-
-    const viewport = window.visualViewport;
-    viewport?.addEventListener("resize", updateToolbarInset);
-    viewport?.addEventListener("scroll", updateToolbarInset);
-    window.addEventListener("orientationchange", updateToolbarInset);
-
-    return () => {
-      viewport?.removeEventListener("resize", updateToolbarInset);
-      viewport?.removeEventListener("scroll", updateToolbarInset);
-      window.removeEventListener("orientationchange", updateToolbarInset);
-    };
-  }, []);
-
+  const isModalOpen = isAddOpen || Boolean(editingProduct);
   const filteredProducts = useMemo(() => {
     const list = products ?? [];
     const query = search.trim().toLowerCase();
@@ -76,25 +44,30 @@ export default function Home() {
   };
 
   return (
-    <div className="h-[100dvh] min-h-[100dvh] overflow-hidden bg-[var(--background)] px-6 pt-[calc(env(safe-area-inset-top)+2rem)] pb-[env(safe-area-inset-bottom)] text-slate-900 sm:pt-[calc(env(safe-area-inset-top)+3rem)] sm:pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+    <div className="h-[100lvh] min-h-[100lvh] overflow-hidden bg-[var(--background)] px-6 pt-8 pb-0 text-slate-900 sm:pt-12">
       <main className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-wrap items-end justify-between gap-6">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
-              MVP
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-              Your shelf
-            </h1>
-          </div>
-          <div className="rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm">
-            {products?.length ?? 0} products
-          </div>
-        </header>
+        <div
+          className={`flex min-h-0 flex-1 flex-col gap-6 transition-opacity duration-200 ${
+            isModalOpen ? "opacity-20" : "opacity-100"
+          }`}
+        >
+          <header className="flex flex-wrap items-end justify-between gap-6">
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
+                MVP
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+                Shelf
+              </h1>
+            </div>
+            <div className="rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm">
+              {products?.length ?? 0} products
+            </div>
+          </header>
 
-        <section className="flex min-h-0 flex-1 flex-col">
+          <section className="flex min-h-0 flex-1 flex-col">
           <div className="relative flex min-h-10 flex-nowrap items-center justify-between gap-4 sm:flex-wrap">
-            <h2 className="text-lg font-semibold text-slate-900">List</h2>
+            <h2 className="text-lg font-semibold text-slate-900">List of products</h2>
             <div className="flex flex-wrap items-center gap-3">
               <label className="group relative hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 sm:flex">
                 <span className="text-slate-400" aria-hidden="true">
@@ -113,8 +86,29 @@ export default function Home() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search products..."
-                  className="w-52 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                  className="w-52 bg-transparent pr-7 text-sm text-slate-800 outline-none placeholder:text-slate-400"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:text-slate-600"
+                    aria-label="Clear search"
+                  >
+                    <svg
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      className="h-4 w-4"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path
+                        d="M5 5l10 10M15 5l-10 10"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                )}
               </label>
               {!isSearchOpen && (
                 <button
@@ -193,21 +187,10 @@ export default function Home() {
           </div>
 
           <div className="relative mt-4 flex-1 min-h-0 overflow-hidden">
-            {isListScrolled && (
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-[linear-gradient(180deg,rgba(246,239,228,0.45),rgba(246,239,228,0.15),rgba(246,239,228,0))] list-blur" />
-            )}
             <div
-              className={`h-full min-h-0 overflow-y-auto overscroll-contain no-scrollbar scroll-clip pb-[calc(env(safe-area-inset-bottom)+var(--safari-ui-bottom))] ${
-                isListScrolled ? "list-fade" : ""
-              }`}
-              onScroll={(event: UIEvent<HTMLDivElement>) => {
-                const scrolled = event.currentTarget.scrollTop > 4;
-                setIsListScrolled((prev) =>
-                  prev === scrolled ? prev : scrolled,
-                );
-              }}
+              className="h-full min-h-0 overflow-y-auto overscroll-contain no-scrollbar scroll-clip list-fade-edges"
             >
-              <div className="grid gap-4 pb-0 pt-2 sm:pb-6">
+              <div className="grid gap-4 pb-0 pt-2">
                 {filteredProducts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-sm text-slate-500">
                     No products yet. Add your first item above.
@@ -224,16 +207,18 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
+          </section>
+        </div>
 
         {isAddOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <>
             <div
-              className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-transparent"
               onClick={() => setIsAddOpen(false)}
               aria-hidden="true"
             />
-            <div className="relative w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6 sm:py-8">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-400">
@@ -246,9 +231,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                  aria-label="Close"
                 >
-                  Close
+                  ×
                 </button>
               </div>
 
@@ -262,17 +248,19 @@ export default function Home() {
                 />
               </div>
             </div>
-          </div>
+            </div>
+          </>
         )}
 
         {editingProduct && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <>
             <div
-              className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-transparent"
               onClick={() => setEditingProduct(null)}
               aria-hidden="true"
             />
-            <div className="relative w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6 sm:py-8">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-400">
@@ -285,9 +273,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                  aria-label="Close"
                 >
-                  Close
+                  ×
                 </button>
               </div>
 
@@ -307,15 +296,16 @@ export default function Home() {
                         await handleDelete(editingProduct._id);
                         setEditingProduct(null);
                       }}
-                      className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                      className="whitespace-nowrap rounded-full border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 sm:px-4 sm:py-2 sm:text-sm"
                     >
-                      Delete product
+                      Delete
                     </button>
                   }
                 />
               </div>
             </div>
-          </div>
+            </div>
+          </>
         )}
       </main>
     </div>
