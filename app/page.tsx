@@ -198,9 +198,9 @@ export default function Home() {
             style={{ animationDelay: "120ms" }}
           >
             <div
-              className="h-full min-h-0 overflow-y-auto overscroll-contain no-scrollbar scroll-clip list-fade-edges"
+              className="h-full min-h-0 overflow-y-auto overscroll-contain no-scrollbar scroll-clip list-fade-edges pb-24 sm:pb-16"
             >
-              <div className="grid gap-4 pb-0 pt-2">
+              <div className="grid gap-4 pt-2">
                 {isLoading ? (
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400 anim-fade-up">
                     Loading products...
