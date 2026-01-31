@@ -1,4 +1,4 @@
-import type { Id } from "convex/_generated/dataModel";
+import type { GenericId } from "convex/values";
 
 export type ProductAmount = {
   value: number;
@@ -6,7 +6,7 @@ export type ProductAmount = {
 };
 
 export type Product = {
-  _id: Id<"products">;
+  _id: GenericId<"products">;
   name: string;
   tag: string;
   amount: ProductAmount;
