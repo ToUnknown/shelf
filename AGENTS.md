@@ -36,3 +36,41 @@ This repo is not a Git repository yet, so no commit conventions exist. If Git is
 ## Security & Configuration
 - Keep secrets in `.env.local` (Convex keys, OpenAI keys) and never commit them.
 - Hardcoded shared password is a requirement; store it in a private server-side config, not client-side.
+
+## Implementation Status (Current MVP)
+This repo already includes a scaffolded Next.js + Convex app with a manual product inventory UI. What’s implemented from `shelf-docs/Requirements.md`:
+
+### Implemented
+- Product inventory CRUD (manual):
+  - Convex `products` table with `name`, `tag`, `amount`, `minAmount` (optional), `createdAt`, `updatedAt`.
+  - Queries/mutations: list (ordered by `updatedAt`), create, update, delete with validation.
+  - UI list with search, add/edit modals, delete, and loading state.
+- Tag behavior:
+  - UI placeholder `#other`.
+  - Empty/legacy `#uncategorized` normalizes to `#other`.
+  - Tags are normalized to always start with `#`.
+- Amount handling:
+  - UI supports `pcs`, `g`, `ml`.
+  - Backend validator accepts `pcs`, `g`, `ml`, `kg`, `l`.
+  - Min amount optional; validated before save.
+- UX/UI polish:
+  - Dark mode via `prefers-color-scheme` + dark classes (auto-sync with device settings).
+  - Menu animations (fade-up, pop, stagger list items) + button hover/press feedback.
+  - Mobile input font size prevents iOS zoom.
+  - List edge fade (mask) and no-scrollbar treatment.
+- Add menu suggestions:
+  - While typing product name in Add, matching existing items appear.
+  - Selecting a suggestion opens Edit for that item instead of creating a duplicate.
+
+### Not implemented yet
+- Authentication (owner/member flows, invites, settings, per-user API keys).
+- Shopping list tab and auto low-stock behavior.
+- Automatic mode (AI-powered add/remove + revert).
+- Suggestions tab, recipe generation, recipes tab, change log.
+- Household/user data model beyond `products`.
+
+### Key files
+- UI: `app/page.tsx`, `components/ProductForm.tsx`, `components/ProductListItem.tsx`
+- Form logic: `lib/productForm.ts`
+- Convex schema & functions: `convex/schema.ts`, `convex/products.ts`
+- Global styles/animations: `app/globals.css`

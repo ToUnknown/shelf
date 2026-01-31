@@ -1,64 +1,341 @@
-import Image from "next/image";
+"use client";
+
+import { useMemo, useState, type CSSProperties } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import ProductForm from "../components/ProductForm";
+import ProductListItem from "../components/ProductListItem";
+import type { Product, ProductInput } from "../lib/productTypes";
+import { draftFromProduct } from "../lib/productForm";
 
 export default function Home() {
+  const products = useQuery(api.products.list);
+  const createProduct = useMutation(api.products.create);
+  const updateProduct = useMutation(api.products.update);
+  const removeProduct = useMutation(api.products.remove);
+  const isLoading = products === undefined;
+  const [search, setSearch] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const isModalOpen = isAddOpen || Boolean(editingProduct);
+  const filteredProducts = useMemo(() => {
+    const list = products ?? [];
+    const query = search.trim().toLowerCase();
+    if (!query) return list;
+    return list.filter((product: Product) => {
+      return (
+        product.name.toLowerCase().includes(query) ||
+        product.tag.toLowerCase().includes(query) ||
+        product.amount.unit.toLowerCase().includes(query)
+      );
+    });
+  }, [products, search]);
+
+  const handleCreate = async (input: ProductInput) => {
+    await createProduct(input);
+  };
+
+  const handleUpdate = async (id: Product["_id"], input: ProductInput) => {
+    await updateProduct({ id, ...input });
+  };
+
+  const handleDelete = async (id: Product["_id"]) => {
+    await removeProduct({ id });
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="h-[100lvh] min-h-[100lvh] overflow-hidden bg-[var(--background)] px-6 pt-8 pb-0 text-slate-900 dark:text-slate-100 sm:pt-12">
+      <main className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-6">
+        <div
+          className={`flex min-h-0 flex-1 flex-col gap-6 transition-opacity duration-200 ${
+            isModalOpen ? "opacity-20" : "opacity-100"
+          }`}
+        >
+          <header
+            className="flex flex-wrap items-end justify-between gap-6 anim-fade-up"
+            style={{ animationDelay: "40ms" }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
+                MVP
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">
+                Shelf
+              </h1>
+            </div>
+            <div className="rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400 anim-pop">
+              {isLoading ? "Loading..." : `${products?.length ?? 0} products`}
+            </div>
+          </header>
+
+          <section className="flex min-h-0 flex-1 flex-col">
+          <div
+            className="relative flex min-h-10 flex-nowrap items-center justify-between gap-4 sm:flex-wrap anim-fade-up"
+            style={{ animationDelay: "80ms" }}
+          >
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">List of products</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="group relative hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:focus-within:border-slate-500 dark:focus-within:ring-slate-800 sm:flex">
+                <span className="text-slate-400 dark:text-slate-500" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="h-4 w-4"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  >
+                    <circle cx="9" cy="9" r="5.75" />
+                    <path d="M13.5 13.5L17 17" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search products..."
+                  className="w-52 bg-transparent pr-7 text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:text-slate-600 active:scale-95 dark:text-slate-500 dark:hover:text-slate-300"
+                    aria-label="Clear search"
+                  >
+                    <svg
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      className="h-4 w-4"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path
+                        d="M5 5l10 10M15 5l-10 10"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </label>
+              {!isSearchOpen && (
+                <button
+                  type="button"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:-translate-y-0.5 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600 sm:hidden"
+                  aria-label="Open search"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="h-4 w-4"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  >
+                    <circle cx="9" cy="9" r="5.75" />
+                    <path d="M13.5 13.5L17 17" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsAddOpen(true)}
+                className={`relative z-20 h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-2xl font-semibold leading-none text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-95 ${
+                  isSearchOpen ? "hidden sm:flex" : "flex"
+                } dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white`}
+                aria-label="Add product"
+              >
+                +
+              </button>
+            </div>
+            {isSearchOpen && (
+              <div className="absolute inset-y-0 left-0 right-0 z-30 flex items-center gap-3 bg-transparent sm:hidden anim-pop">
+                <label className="flex flex-1 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:focus-within:border-slate-500 dark:focus-within:ring-slate-800">
+                  <span className="text-slate-400 dark:text-slate-500" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      className="h-4 w-4"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    >
+                      <circle cx="9" cy="9" r="5.75" />
+                      <path d="M13.5 13.5L17 17" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search products..."
+                    className="flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500 sm:text-sm"
+                    autoFocus
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsSearchOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:-translate-y-0.5 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600"
+                  aria-label="Close search"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="h-4 w-4"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path
+                      d="M5 5l10 10M15 5l-10 10"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="relative mt-4 flex-1 min-h-0 overflow-hidden anim-fade-up"
+            style={{ animationDelay: "120ms" }}
+          >
+            <div
+              className="h-full min-h-0 overflow-y-auto overscroll-contain no-scrollbar scroll-clip list-fade-edges pb-24 sm:pb-16"
+            >
+              <div className="grid gap-4 pt-2">
+                {isLoading ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400 anim-fade-up">
+                    Loading products...
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400 anim-fade-up">
+                    No products yet. Add your first item above.
+                  </div>
+                ) : (
+                  filteredProducts.map((product: Product, index: number) => (
+                    <div
+                      key={product._id}
+                      className="stagger-item"
+                      style={
+                        {
+                          "--stagger": `${Math.min(index, 12) * 40}ms`,
+                        } as CSSProperties
+                      }
+                    >
+                      <ProductListItem
+                        product={product}
+                        onSelect={setEditingProduct}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+          </section>
+        </div>
+
+        {isAddOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-transparent"
+              onClick={() => setIsAddOpen(false)}
+              aria-hidden="true"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6 sm:py-8">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:rounded-3xl sm:p-6 anim-pop">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">
+                    Add product
+                  </p>
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                    New inventory item
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg font-semibold text-slate-500 transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-700 active:scale-95 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-slate-200"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <ProductForm
+                  onSubmit={async (input) => {
+                    await handleCreate(input);
+                    setIsAddOpen(false);
+                  }}
+                  existingProducts={products ?? []}
+                  onSelectExisting={(product) => {
+                    setIsAddOpen(false);
+                    setEditingProduct(product);
+                  }}
+                  enableSuggestions
+                  submitLabel="Add product"
+                />
+              </div>
+            </div>
+            </div>
+          </>
+        )}
+
+        {editingProduct && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-transparent"
+              onClick={() => setEditingProduct(null)}
+              aria-hidden="true"
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6 sm:py-8">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:rounded-3xl sm:p-6 anim-pop">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">
+                    Edit product
+                  </p>
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                    {editingProduct.name}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg font-semibold text-slate-500 transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-700 active:scale-95 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-slate-200"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-4">
+                <ProductForm
+                  onSubmit={async (input) => {
+                    await handleUpdate(editingProduct._id, input);
+                    setEditingProduct(null);
+                  }}
+                  initialDraft={draftFromProduct(editingProduct)}
+                  submitLabel="Save changes"
+                  actionsAlign="right"
+                  leadingAction={
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleDelete(editingProduct._id);
+                        setEditingProduct(null);
+                      }}
+                      className="whitespace-nowrap rounded-full border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:-translate-y-0.5 hover:bg-rose-50 active:scale-95 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10 sm:px-4 sm:py-2 sm:text-sm"
+                    >
+                      Delete
+                    </button>
+                  }
+                />
+              </div>
+            </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
