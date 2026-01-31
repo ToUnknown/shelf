@@ -1,4 +1,4 @@
-import type { Id } from "convex/values";
+import type { Id } from "convex/_generated/dataModel";
 
 export type ProductAmount = {
   value: number;
