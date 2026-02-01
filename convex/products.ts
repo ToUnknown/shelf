@@ -1,8 +1,6 @@
 import { v } from "convex/values";
-import { mutationGeneric, queryGeneric } from "convex/server";
-
-const mutation = mutationGeneric;
-const query = queryGeneric;
+import { mutation, query } from "./_generated/server";
+import { requireUser } from "./authHelpers";
 
 const amountValidator = v.object({
   value: v.number(),
@@ -26,9 +24,15 @@ const validateAmount = (amount: { value: number; unit: string }) => {
 export const list = query({
   args: {},
   handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    if (!user.householdId) {
+      return [];
+    }
     return ctx.db
       .query("products")
-      .withIndex("by_updatedAt")
+      .withIndex("by_household_and_updatedAt", (q) =>
+        q.eq("householdId", user.householdId),
+      )
       .order("desc")
       .collect();
   },
@@ -42,6 +46,10 @@ export const create = mutation({
     minAmount: v.optional(amountValidator),
   },
   handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    if (!user.householdId) {
+      throw new Error("Household not set.");
+    }
     const name = args.name.trim();
     const tag = args.tag.trim();
     if (!name) {
@@ -57,12 +65,14 @@ export const create = mutation({
 
     const now = Date.now();
     return ctx.db.insert("products", {
+      householdId: user.householdId,
       name,
       tag,
       amount: args.amount,
       minAmount: args.minAmount,
       createdAt: now,
       updatedAt: now,
+      updatedBy: user._id,
     });
   },
 });
@@ -76,6 +86,10 @@ export const update = mutation({
     minAmount: v.optional(amountValidator),
   },
   handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    if (!user.householdId) {
+      throw new Error("Household not set.");
+    }
     const name = args.name.trim();
     const tag = args.tag.trim();
     if (!name) {
@@ -89,12 +103,18 @@ export const update = mutation({
       validateAmount(args.minAmount);
     }
 
+    const product = await ctx.db.get(args.id);
+    if (!product || product.householdId !== user.householdId) {
+      throw new Error("Product not found.");
+    }
+
     await ctx.db.patch(args.id, {
       name,
       tag,
       amount: args.amount,
       minAmount: args.minAmount,
       updatedAt: Date.now(),
+      updatedBy: user._id,
     });
   },
 });
@@ -102,6 +122,14 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    if (!user.householdId) {
+      throw new Error("Household not set.");
+    }
+    const product = await ctx.db.get(args.id);
+    if (!product || product.householdId !== user.householdId) {
+      throw new Error("Product not found.");
+    }
     await ctx.db.delete(args.id);
   },
 });
