@@ -45,7 +45,7 @@ export const list = query({
         q.eq("householdId", householdId),
       )
       .order("desc")
-      .filter((q) => q.neq(q.field("status"), "revoked"))
+      .filter((q) => q.eq(q.field("status"), "reserved"))
       .collect();
   },
 });
