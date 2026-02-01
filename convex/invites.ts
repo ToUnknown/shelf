@@ -35,9 +35,11 @@ export const list = query({
     }
     return ctx.db
       .query("memberInvites")
-      .withIndex("by_household_and_email", (q) =>
+      .withIndex("by_household_and_invitedAt", (q) =>
         q.eq("householdId", householdId),
       )
+      .order("desc")
+      .filter((q) => q.neq(q.field("status"), "revoked"))
       .collect();
   },
 });
@@ -207,22 +209,23 @@ export const revoke = mutation({
       throw new Error("Email is required.");
     }
 
-    const invite = await ctx.db
+    const invites = await ctx.db
       .query("memberInvites")
       .withIndex("by_household_and_email", (q) =>
         q.eq("householdId", householdId).eq("email", email),
       )
-      .first();
+      .collect();
 
-    if (!invite) {
+    const activeInvites = invites.filter((item) => item.status !== "revoked");
+    if (activeInvites.length === 0) {
       throw new Error("Invite not found.");
     }
 
-    if (invite.status === "revoked") {
-      return { status: "revoked" } as const;
-    }
-
-    await ctx.db.patch(invite._id, { status: "revoked" });
+    await Promise.all(
+      activeInvites.map((item) =>
+        ctx.db.patch(item._id, { status: "revoked" }),
+      ),
+    );
     return { status: "revoked" } as const;
   },
 });

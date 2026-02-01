@@ -37,6 +37,7 @@ const memberInvites = defineTable({
   invitedBy: v.id("users"),
 })
   .index("by_household_and_email", ["householdId", "email"])
+  .index("by_household_and_invitedAt", ["householdId", "invitedAt"])
   .index("by_email", ["email"]);
 
 const inviteTokens = defineTable({
