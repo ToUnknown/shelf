@@ -14,6 +14,7 @@ const users = defineTable({
   householdId: v.optional(v.id("households")),
   role: v.optional(v.union(v.literal("owner"), v.literal("member"))),
   apiKey: v.optional(v.string()),
+  appEmailVerifiedAt: v.optional(v.number()),
 })
   .index("email", ["email"])
   .index("phone", ["phone"])
@@ -48,7 +49,22 @@ const inviteTokens = defineTable({
   expiresAt: v.number(),
   usedAt: v.optional(v.number()),
   createdAt: v.number(),
-}).index("by_token_hash", ["tokenHash"]);
+})
+  .index("by_token_hash", ["tokenHash"])
+  .index("by_invite", ["inviteId"])
+  .index("by_email", ["email"]);
+
+const emailVerificationTokens = defineTable({
+  userId: v.id("users"),
+  email: v.string(),
+  tokenHash: v.string(),
+  expiresAt: v.number(),
+  usedAt: v.optional(v.number()),
+  createdAt: v.number(),
+})
+  .index("by_token_hash", ["tokenHash"])
+  .index("by_user", ["userId"])
+  .index("by_email", ["email"]);
 
 const products = defineTable({
   householdId: v.optional(v.id("households")),
@@ -79,5 +95,6 @@ export default defineSchema({
   households,
   memberInvites,
   inviteTokens,
+  emailVerificationTokens,
   products,
 });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 
 type Props = {
   token: string | null;
@@ -15,70 +15,46 @@ const resolveToken = (token: string | null) => {
   return new URL(window.location.href).searchParams.get("token");
 };
 
-export default function InviteAcceptClient({ token }: Props) {
-  const [tokenValue, setTokenValue] = useState<string | null>(token);
-  const [checkedToken, setCheckedToken] = useState(false);
-  const acceptInvite = useMutation(api.invites.acceptWithToken);
+export default function VerifyEmailClient({ token }: Props) {
+  const verifyEmail = useMutation(api.users.verifyEmailWithToken);
   const [resolvedToken] = useState<string | null>(() => resolveToken(token));
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     resolvedToken ? "loading" : "error",
   );
   const [message, setMessage] = useState(
-    resolvedToken ? "Accepting invite..." : "Missing invite token.",
+    resolvedToken ? "Verifying email..." : "Missing verification token.",
   );
 
   useEffect(() => {
-    if (tokenValue) {
-      setCheckedToken(true);
-      return;
-    }
-    if (typeof window !== "undefined") {
-      const urlToken = new URL(window.location.href).searchParams.get("token");
-      if (urlToken) {
-        setTokenValue(urlToken);
-        setCheckedToken(true);
-        return;
-      }
-    }
-    setCheckedToken(true);
-  }, [tokenValue]);
+    if (!resolvedToken) return;
 
-  useEffect(() => {
     let cancelled = false;
-    if (!tokenValue) {
-      if (!checkedToken) {
-        return () => {
-          cancelled = true;
-        };
-      }
-      setStatus("error");
-      setMessage("Missing invite token.");
-      return;
-    }
-    acceptInvite({ token: tokenValue })
+    verifyEmail({ token: resolvedToken })
       .then(() => {
         if (cancelled) return;
         setStatus("success");
-        setMessage("Invite accepted. You can now sign in as a member.");
+        setMessage("Email verified. You can return to Shelf.");
       })
       .catch((error) => {
         if (cancelled) return;
         setStatus("error");
         setMessage(
-          error instanceof Error ? error.message : "Invite could not be accepted.",
+          error instanceof Error
+            ? error.message
+            : "Email verification failed.",
         );
       });
 
     return () => {
       cancelled = true;
     };
-  }, [acceptInvite, checkedToken, tokenValue]);
+  }, [resolvedToken, verifyEmail]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-10 text-slate-900 dark:text-slate-100">
       <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white/90 p-6 text-center shadow-2xl dark:border-slate-700 dark:bg-slate-900/90 sm:p-8 anim-pop">
         <h1 className="text-2xl font-semibold">
-          {status === "success" ? "Invite accepted" : "Invite status"}
+          {status === "success" ? "Email verified" : "Verification status"}
         </h1>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
           {message}
