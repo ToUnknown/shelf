@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+
+export const dynamic = "force-dynamic";
 
 export default function InviteDeclinePage() {
   const params = useSearchParams();
@@ -48,12 +51,12 @@ export default function InviteDeclinePage() {
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
           {message}
         </p>
-        <a
+        <Link
           href="/"
           className="mt-6 inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
         >
           Go to Shelf
-        </a>
+        </Link>
       </div>
     </div>
   );
