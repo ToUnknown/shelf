@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
@@ -21,6 +21,7 @@ type MemberStep = "email" | "signup" | "signin";
 
 export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
   const auth = useConvexAuth();
+  const convex = useConvex();
   const { signIn, signOut } = useAuthActions();
   const createOwner = useMutation(api.users.createOwner);
   const joinHousehold = useMutation(api.users.joinHousehold);
@@ -112,9 +113,20 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setOwnerCreateError(null);
     setBusy(true);
     try {
+      const email = normalizeEmail(ownerCreate.email);
+      const info = await convex.query(api.users.checkMemberInvite, { email });
+      if (info.userRole === "member" || info.inviteStatus !== "none") {
+        throw new Error(
+          "This email is reserved for a member. Use the Member tab instead.",
+        );
+      }
+      if (info.hasUser) {
+        throw new Error("Email is already in use.");
+      }
+
       await signIn("password", {
         flow: "signUp",
-        email: normalizeEmail(ownerCreate.email),
+        email,
         password: ownerCreate.password,
         roleIntent: "owner",
       });
@@ -135,9 +147,17 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setOwnerLoginError(null);
     setBusy(true);
     try {
+      const email = normalizeEmail(ownerLogin.email);
+      const info = await convex.query(api.users.checkMemberInvite, { email });
+      if (info.userRole === "member" || info.inviteStatus !== "none") {
+        throw new Error(
+          "This email belongs to a member flow. Use the Member tab instead.",
+        );
+      }
+
       await signIn("password", {
         flow: "signIn",
-        email: normalizeEmail(ownerLogin.email),
+        email,
         password: ownerLogin.password,
         roleIntent: "owner",
       });
@@ -167,6 +187,19 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setMemberError(null);
     setBusy(true);
     try {
+      const info = await convex.query(api.users.checkMemberInvite, {
+        email: memberEmail,
+      });
+      if (info.userRole === "owner") {
+        throw new Error("This email belongs to an owner account.");
+      }
+      if (info.inviteStatus !== "accepted") {
+        throw new Error("Invite is not accepted yet.");
+      }
+      if (info.hasUser) {
+        throw new Error("Account already exists. Use member log in.");
+      }
+
       await signIn("password", {
         flow: "signUp",
         email: memberEmail,
@@ -191,6 +224,13 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setMemberError(null);
     setBusy(true);
     try {
+      const info = await convex.query(api.users.checkMemberInvite, {
+        email: memberEmail,
+      });
+      if (info.userRole !== "member") {
+        throw new Error("Member account not found.");
+      }
+
       await signIn("password", {
         flow: "signIn",
         email: memberEmail,
