@@ -16,6 +16,8 @@ const resolveToken = (token: string | null) => {
 };
 
 export default function InviteAcceptClient({ token }: Props) {
+  const [tokenValue, setTokenValue] = useState<string | null>(token);
+  const [checkedToken, setCheckedToken] = useState(false);
   const acceptInvite = useMutation(api.invites.acceptWithToken);
   const [resolvedToken] = useState<string | null>(() => resolveToken(token));
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -26,10 +28,34 @@ export default function InviteAcceptClient({ token }: Props) {
   );
 
   useEffect(() => {
-    if (!resolvedToken) return;
+    if (tokenValue) {
+      setCheckedToken(true);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const urlToken = new URL(window.location.href).searchParams.get("token");
+      if (urlToken) {
+        setTokenValue(urlToken);
+        setCheckedToken(true);
+        return;
+      }
+    }
+    setCheckedToken(true);
+  }, [tokenValue]);
 
+  useEffect(() => {
     let cancelled = false;
-    acceptInvite({ token: resolvedToken })
+    if (!tokenValue) {
+      if (!checkedToken) {
+        return () => {
+          cancelled = true;
+        };
+      }
+      setStatus("error");
+      setMessage("Missing invite token.");
+      return;
+    }
+    acceptInvite({ token: tokenValue })
       .then(() => {
         if (cancelled) return;
         setStatus("success");
@@ -46,7 +72,7 @@ export default function InviteAcceptClient({ token }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [acceptInvite, resolvedToken]);
+  }, [acceptInvite, checkedToken, tokenValue]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-10 text-slate-900 dark:text-slate-100">
