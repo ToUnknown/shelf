@@ -70,6 +70,7 @@ export default function Home() {
   const [memberBusyId, setMemberBusyId] = useState<Id<"users"> | null>(null);
   const [dangerBusy, setDangerBusy] = useState(false);
   const [verificationBusy, setVerificationBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(
     null,
   );
@@ -144,11 +145,15 @@ export default function Home() {
   };
 
   const handleResendVerification = async () => {
+    if (resendCooldown > 0) {
+      return;
+    }
     setVerificationMessage(null);
     setVerificationBusy(true);
     try {
       await resendVerificationEmail({});
       setVerificationMessage("Verification email sent. Check your inbox.");
+      setResendCooldown(30);
     } catch (error) {
       setVerificationMessage(
         error instanceof Error
@@ -159,6 +164,14 @@ export default function Home() {
       setVerificationBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timeoutId = setTimeout(() => {
+      setResendCooldown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [resendCooldown]);
 
   const handleRemoveMember = async (memberId: Id<"users">, label: string) => {
     if (!confirm(`Delete ${label}'s account from this household?`)) {
@@ -262,10 +275,10 @@ export default function Home() {
             <button
               type="button"
               onClick={handleResendVerification}
-              disabled={verificationBusy}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+              disabled={verificationBusy || resendCooldown > 0}
+              className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
             >
-              Resend email
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend email"}
             </button>
           </div>
         </div>
