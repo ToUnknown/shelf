@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -10,6 +11,8 @@ type Props = {
 };
 
 export default function InviteAcceptClient({ token }: Props) {
+  const params = useSearchParams();
+  const resolvedToken = token ?? params.get("token");
   const acceptInvite = useMutation(api.invites.acceptWithToken);
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading",
@@ -18,12 +21,12 @@ export default function InviteAcceptClient({ token }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!token) {
+    if (!resolvedToken) {
       setStatus("error");
       setMessage("Missing invite token.");
       return;
     }
-    acceptInvite({ token })
+    acceptInvite({ token: resolvedToken })
       .then(() => {
         if (cancelled) return;
         setStatus("success");
@@ -39,7 +42,7 @@ export default function InviteAcceptClient({ token }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [acceptInvite, token]);
+  }, [acceptInvite, resolvedToken]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-10 text-slate-900 dark:text-slate-100">
