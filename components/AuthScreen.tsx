@@ -59,6 +59,11 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
       setMemberError("This email already belongs to an owner account.");
       return;
     }
+    if (inviteInfo.userRole === "member" && inviteInfo.hasUser) {
+      setMemberError(null);
+      setMemberStep("signin");
+      return;
+    }
     if (inviteInfo.inviteStatus !== "accepted") {
       if (inviteInfo.inviteStatus === "reserved") {
         setMemberError("Check your email to accept the invite first.");
@@ -314,7 +319,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
                       displayName: event.target.value,
                     }))
                   }
-                  placeholder="Max"
+                  placeholder="name"
                   className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
@@ -360,7 +365,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+                className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
               >
                 Create household
               </button>
@@ -410,7 +415,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+                className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
               >
                 Log in
               </button>
@@ -464,7 +469,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
                           displayName: event.target.value,
                         }))
                       }
-                      placeholder="Roma"
+                      placeholder="name"
                       className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>
