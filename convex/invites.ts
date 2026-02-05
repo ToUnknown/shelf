@@ -1,11 +1,17 @@
 import { v } from "convex/values";
 import { action, internalMutation, mutation, query } from "./_generated/server";
+import type { FunctionReference } from "convex/server";
 import {
   findActiveInviteByEmail,
   findUserByEmail,
   normalizeEmail,
   requireOwner,
 } from "./authHelpers";
+
+const getCurrentUserRef = "users:getCurrent" as unknown as FunctionReference<"query">;
+const reserveInternalRef =
+  "invites:reserveInternal" as unknown as FunctionReference<"mutation", "internal">;
+const sendInviteRef = "email:sendInvite" as unknown as FunctionReference<"action">;
 
 const randomToken = () => {
   const bytes = new Uint8Array(32);
@@ -39,7 +45,7 @@ export const list = query({
         q.eq("householdId", householdId),
       )
       .order("desc")
-      .filter((q) => q.neq(q.field("status"), "revoked"))
+      .filter((q) => q.eq(q.field("status"), "reserved"))
       .collect();
   },
 });
@@ -47,7 +53,7 @@ export const list = query({
 export const reserve = action({
   args: { email: v.string() },
   handler: async (ctx, args) => {
-    const owner = await ctx.runQuery("users:getCurrent" as any, {});
+    const owner = await ctx.runQuery(getCurrentUserRef, {});
     if (!owner || owner.role !== "owner") {
       throw new Error("Owner access required.");
     }
@@ -65,16 +71,13 @@ export const reserve = action({
     const now = Date.now();
     const expiresAt = now + TOKEN_TTL_MS;
 
-    const inviteId = await ctx.runMutation(
-      "invites:reserveInternal" as any,
-      {
-        email,
-        tokenHash,
-        expiresAt,
-        householdId: owner.householdId,
-        invitedBy: owner._id,
-      },
-    );
+    const inviteId = await ctx.runMutation(reserveInternalRef, {
+      email,
+      tokenHash,
+      expiresAt,
+      householdId: owner.householdId,
+      invitedBy: owner._id,
+    });
 
     const baseUrl = process.env.APP_URL;
     if (!baseUrl) {
@@ -83,7 +86,7 @@ export const reserve = action({
     const acceptUrl = `${baseUrl}/invite/accept?token=${token}`;
     const denyUrl = `${baseUrl}/invite/decline?token=${token}`;
 
-    await ctx.runAction("email:sendInvite" as any, {
+    await ctx.runAction(sendInviteRef, {
       to: email,
       acceptUrl,
       denyUrl,

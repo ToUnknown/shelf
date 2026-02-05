@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
@@ -21,6 +21,7 @@ type MemberStep = "email" | "signup" | "signin";
 
 export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
   const auth = useConvexAuth();
+  const convex = useConvex();
   const { signIn, signOut } = useAuthActions();
   const createOwner = useMutation(api.users.createOwner);
   const joinHousehold = useMutation(api.users.joinHousehold);
@@ -56,6 +57,11 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     if (!memberEmail || !inviteInfo) return;
     if (inviteInfo.userRole === "owner") {
       setMemberError("This email already belongs to an owner account.");
+      return;
+    }
+    if (inviteInfo.userRole === "member" && inviteInfo.hasUser) {
+      setMemberError(null);
+      setMemberStep("signin");
       return;
     }
     if (inviteInfo.inviteStatus !== "accepted") {
@@ -112,9 +118,20 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setOwnerCreateError(null);
     setBusy(true);
     try {
+      const email = normalizeEmail(ownerCreate.email);
+      const info = await convex.query(api.users.checkMemberInvite, { email });
+      if (info.userRole === "member" || info.inviteStatus !== "none") {
+        throw new Error(
+          "This email is reserved for a member. Use the Member tab instead.",
+        );
+      }
+      if (info.hasUser) {
+        throw new Error("Email is already in use.");
+      }
+
       await signIn("password", {
         flow: "signUp",
-        email: normalizeEmail(ownerCreate.email),
+        email,
         password: ownerCreate.password,
         roleIntent: "owner",
       });
@@ -135,9 +152,17 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setOwnerLoginError(null);
     setBusy(true);
     try {
+      const email = normalizeEmail(ownerLogin.email);
+      const info = await convex.query(api.users.checkMemberInvite, { email });
+      if (info.userRole === "member" || info.inviteStatus !== "none") {
+        throw new Error(
+          "This email belongs to a member flow. Use the Member tab instead.",
+        );
+      }
+
       await signIn("password", {
         flow: "signIn",
-        email: normalizeEmail(ownerLogin.email),
+        email,
         password: ownerLogin.password,
         roleIntent: "owner",
       });
@@ -167,6 +192,19 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setMemberError(null);
     setBusy(true);
     try {
+      const info = await convex.query(api.users.checkMemberInvite, {
+        email: memberEmail,
+      });
+      if (info.userRole === "owner") {
+        throw new Error("This email belongs to an owner account.");
+      }
+      if (info.inviteStatus !== "accepted") {
+        throw new Error("Invite is not accepted yet.");
+      }
+      if (info.hasUser) {
+        throw new Error("Account already exists. Use member log in.");
+      }
+
       await signIn("password", {
         flow: "signUp",
         email: memberEmail,
@@ -191,6 +229,13 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     setMemberError(null);
     setBusy(true);
     try {
+      const info = await convex.query(api.users.checkMemberInvite, {
+        email: memberEmail,
+      });
+      if (info.userRole !== "member") {
+        throw new Error("Member account not found.");
+      }
+
       await signIn("password", {
         flow: "signIn",
         email: memberEmail,
@@ -274,7 +319,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
                       displayName: event.target.value,
                     }))
                   }
-                  placeholder="Max"
+                  placeholder="name"
                   className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
@@ -320,7 +365,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+                className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
               >
                 Create household
               </button>
@@ -370,7 +415,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+                className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
               >
                 Log in
               </button>
@@ -424,7 +469,7 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
                           displayName: event.target.value,
                         }))
                       }
-                      placeholder="Roma"
+                      placeholder="name"
                       className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>

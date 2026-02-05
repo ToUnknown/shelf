@@ -14,6 +14,7 @@ import ProductListItem from "../components/ProductListItem";
 import AuthScreen from "../components/AuthScreen";
 import type { Product, ProductInput } from "../lib/productTypes";
 import { draftFromProduct } from "../lib/productForm";
+import type { Doc, Id } from "../convex/_generated/dataModel";
 
 export default function Home() {
   const auth = useConvexAuth();
@@ -32,10 +33,18 @@ export default function Home() {
   const removeProduct = useMutation(api.products.remove);
   const updateDisplayName = useMutation(api.users.updateDisplayName);
   const updateApiKey = useMutation(api.users.updateApiKey);
+  const resendVerificationEmail = useMutation(api.users.resendVerificationEmail);
   const reserveInvite = useAction(api.invites.reserve);
   const revokeInvite = useMutation(api.invites.revoke);
+  const removeMember = useMutation(api.users.removeMember);
+  const leaveHousehold = useMutation(api.users.leaveHousehold);
+  const deleteMyAccount = useMutation(api.users.deleteMyAccount);
   const invites = useQuery(
     api.invites.list,
+    currentUser?.role === "owner" ? {} : "skip",
+  );
+  const members = useQuery(
+    api.users.listMembers,
     currentUser?.role === "owner" ? {} : "skip",
   );
   const { signOut } = useAuthActions();
@@ -57,6 +66,16 @@ export default function Home() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [memberMessage, setMemberMessage] = useState<string | null>(null);
+  const [memberBusyId, setMemberBusyId] = useState<Id<"users"> | null>(null);
+  const [dangerBusy, setDangerBusy] = useState(false);
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(
+    null,
+  );
+
+  const isEmailVerified = Boolean(currentUser?.appEmailVerifiedAt);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -125,6 +144,95 @@ export default function Home() {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0) {
+      return;
+    }
+    setVerificationMessage(null);
+    setVerificationBusy(true);
+    try {
+      await resendVerificationEmail({});
+      setVerificationMessage("Verification email sent. Check your inbox.");
+      setResendCooldown(30);
+    } catch (error) {
+      setVerificationMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not send verification email.",
+      );
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timeoutId = setTimeout(() => {
+      setResendCooldown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [resendCooldown]);
+
+  const handleRemoveMember = async (memberId: Id<"users">, label: string) => {
+    if (!confirm(`Delete ${label}'s account from this household?`)) {
+      return;
+    }
+    setMemberMessage(null);
+    setMemberBusyId(memberId);
+    try {
+      await removeMember({ memberId });
+      setMemberMessage("Member removed.");
+    } catch (error) {
+      setMemberMessage(
+        error instanceof Error ? error.message : "Could not remove member.",
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  const handleLeaveHousehold = async () => {
+    if (
+      !confirm(
+        "Leaving household will permanently delete your account. Continue?",
+      )
+    ) {
+      return;
+    }
+    setDangerBusy(true);
+    try {
+      await leaveHousehold({});
+      await signOut();
+    } catch (error) {
+      setMemberMessage(
+        error instanceof Error ? error.message : "Could not leave household.",
+      );
+    } finally {
+      setDangerBusy(false);
+    }
+  };
+
+  const handleDeleteOwnerAccount = async () => {
+    if (
+      !confirm(
+        "Delete household and all member accounts permanently? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setDangerBusy(true);
+    try {
+      await deleteMyAccount({});
+      await signOut();
+    } catch (error) {
+      setMemberMessage(
+        error instanceof Error ? error.message : "Could not delete household.",
+      );
+    } finally {
+      setDangerBusy(false);
+    }
+  };
+
   if (auth.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--background)] text-sm text-slate-500 dark:text-slate-400">
@@ -135,6 +243,47 @@ export default function Home() {
 
   if (!isReady) {
     return <AuthScreen isLoadingUser={isLoadingUser} />;
+  }
+
+  if (!isEmailVerified) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-10 text-slate-900 dark:text-slate-100">
+        <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900/90 sm:p-8 anim-pop">
+          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
+            Shelf
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+            Email not verified
+          </h1>
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            Confirm your email to unlock the app. We sent a verification link to{" "}
+            {currentUser?.email}.
+          </p>
+          {verificationMessage ? (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+              {verificationMessage}
+            </p>
+          ) : null}
+          <div className="mt-6 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="text-sm font-semibold text-slate-500 transition hover:text-slate-700 dark:text-slate-400"
+            >
+              Sign out
+            </button>
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={verificationBusy || resendCooldown > 0}
+              className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
+            >
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend email"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -511,60 +660,60 @@ export default function Home() {
                   </div>
 
                   {currentUser?.role === "owner" ? (
-                    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/70">
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                          Invite member
-                        </label>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <input
-                            value={inviteEmail}
-                            onChange={(event) => setInviteEmail(event.target.value)}
-                            placeholder="member@example.com"
-                            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleInvite}
-                            disabled={inviteBusy}
-                            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200"
-                          >
-                            Send
-                          </button>
-                        </div>
-                      </div>
-                      {inviteMessage ? (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {inviteMessage}
-                        </p>
-                      ) : null}
-                      <div className="grid gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-                          Invites
-                        </p>
-                        {invites === undefined ? (
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Loading invites...
-                          </p>
-                        ) : invites.length === 0 ? (
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
-                            No invites yet.
-                          </p>
-                        ) : (
-                          invites.map((invite) => (
-                            <div
-                              key={invite._id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                    <>
+                      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/70">
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                            Invite member
+                          </label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <input
+                              value={inviteEmail}
+                              onChange={(event) => setInviteEmail(event.target.value)}
+                              placeholder="member@example.com"
+                              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleInvite}
+                              disabled={inviteBusy}
+                              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200"
                             >
-                              <div>
-                                <p className="font-semibold text-slate-900 dark:text-slate-100">
-                                  {invite.email}
-                                </p>
-                                <p className="text-xs text-slate-400 dark:text-slate-500">
-                                  {invite.status}
-                                </p>
-                              </div>
-                              {invite.status !== "revoked" ? (
+                              Send
+                            </button>
+                          </div>
+                        </div>
+                        {inviteMessage ? (
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {inviteMessage}
+                          </p>
+                        ) : null}
+                        <div className="grid gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                            Invites
+                          </p>
+                          {invites === undefined ? (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                              Loading invites...
+                            </p>
+                          ) : invites.length === 0 ? (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                              No invites yet.
+                            </p>
+                          ) : (
+                            invites.map((invite: Doc<"memberInvites">) => (
+                              <div
+                                key={invite._id}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                              >
+                                <div>
+                                  <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                    {invite.email}
+                                  </p>
+                                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                                    {invite.status}
+                                  </p>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => revokeInvite({ email: invite.email })}
@@ -572,13 +721,101 @@ export default function Home() {
                                 >
                                   Revoke
                                 </button>
-                              ) : null}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/70">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                          Members
+                        </p>
+                        {members === undefined ? (
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Loading members...
+                          </p>
+                        ) : members.length === 0 ? (
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            No members yet.
+                          </p>
+                        ) : (
+                          members.map((member: Doc<"users">) => (
+                            <div
+                              key={member._id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                            >
+                              <div>
+                                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                  {member.displayName || member.email || "Member"}
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-slate-500">
+                                  {member.email || "No email"}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveMember(
+                                    member._id,
+                                    member.displayName || member.email || "member",
+                                  )
+                                }
+                                disabled={memberBusyId === member._id}
+                                className="text-xs font-semibold text-rose-500 transition hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Remove
+                              </button>
                             </div>
                           ))
                         )}
+                        {memberMessage ? (
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {memberMessage}
+                          </p>
+                        ) : null}
                       </div>
+
+                      <div className="grid gap-2 rounded-2xl border border-rose-200 bg-rose-50/60 p-4 dark:border-rose-500/30 dark:bg-rose-500/10">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500 dark:text-rose-300">
+                          Danger zone
+                        </p>
+                        <p className="text-sm text-rose-600 dark:text-rose-300">
+                          Deleting owner account will remove this household and all member accounts.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleDeleteOwnerAccount}
+                          disabled={dangerBusy}
+                          className="justify-self-start rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-400/50 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                        >
+                          Delete household
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="grid gap-2 rounded-2xl border border-rose-200 bg-rose-50/60 p-4 dark:border-rose-500/30 dark:bg-rose-500/10">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500 dark:text-rose-300">
+                        Danger zone
+                      </p>
+                      <p className="text-sm text-rose-600 dark:text-rose-300">
+                        Leaving household permanently deletes your account.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleLeaveHousehold}
+                        disabled={dangerBusy}
+                        className="justify-self-start rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-400/50 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                      >
+                        Leave household
+                      </button>
+                      {memberMessage ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {memberMessage}
+                        </p>
+                      ) : null}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </div>

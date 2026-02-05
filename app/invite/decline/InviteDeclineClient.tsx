@@ -9,21 +9,53 @@ type Props = {
   token: string | null;
 };
 
+const resolveToken = (token: string | null) => {
+  if (token) return token;
+  if (typeof window === "undefined") return null;
+  return new URL(window.location.href).searchParams.get("token");
+};
+
 export default function InviteDeclineClient({ token }: Props) {
+  const [tokenValue, setTokenValue] = useState<string | null>(token);
+  const [checkedToken, setCheckedToken] = useState(false);
   const declineInvite = useMutation(api.invites.declineWithToken);
+  const [resolvedToken] = useState<string | null>(() => resolveToken(token));
   const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading",
+    resolvedToken ? "loading" : "error",
   );
-  const [message, setMessage] = useState("Declining invite...");
+  const [message, setMessage] = useState(
+    resolvedToken ? "Declining invite..." : "Missing invite token.",
+  );
+
+  useEffect(() => {
+    if (tokenValue) {
+      setCheckedToken(true);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const urlToken = new URL(window.location.href).searchParams.get("token");
+      if (urlToken) {
+        setTokenValue(urlToken);
+        setCheckedToken(true);
+        return;
+      }
+    }
+    setCheckedToken(true);
+  }, [tokenValue]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!token) {
+    if (!tokenValue) {
+      if (!checkedToken) {
+        return () => {
+          cancelled = true;
+        };
+      }
       setStatus("error");
       setMessage("Missing invite token.");
       return;
     }
-    declineInvite({ token })
+    declineInvite({ token: tokenValue })
       .then(() => {
         if (cancelled) return;
         setStatus("success");
@@ -36,10 +68,11 @@ export default function InviteDeclineClient({ token }: Props) {
           error instanceof Error ? error.message : "Invite could not be declined.",
         );
       });
+
     return () => {
       cancelled = true;
     };
-  }, [declineInvite, token]);
+  }, [checkedToken, declineInvite, tokenValue]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-10 text-slate-900 dark:text-slate-100">
