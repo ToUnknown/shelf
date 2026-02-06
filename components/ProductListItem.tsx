@@ -35,26 +35,36 @@ export default function ProductListItem({
     product.tag.trim().toLowerCase() === "#uncategorized"
       ? "#other"
       : product.tag;
+  const isLowStock =
+    Boolean(product.minAmount) &&
+    product.minAmount?.unit === product.amount.unit &&
+    product.amount.value <= product.minAmount.value;
+
   return (
     <button
       type="button"
       onClick={() => onSelect(product)}
-      className="flex w-full items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900/80 dark:hover:border-slate-600"
+      className="neo-panel flex min-h-[4.25rem] w-full items-start justify-between gap-3 rounded-2xl px-3.5 py-3.5 text-left transition hover:-translate-y-0.5 active:scale-[0.99] sm:items-center sm:gap-4 sm:px-4 sm:py-3"
+      style={{ boxShadow: "none" }}
     >
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{product.name}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{displayTag}</p>
+      <div className="min-w-0 space-y-1">
+        <p className="truncate text-sm font-semibold text-[var(--foreground)]">{product.name}</p>
+        <p className="text-xs text-[var(--muted)]">{displayTag}</p>
       </div>
-      <div className="text-right">
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <div className="text-right tabular-nums">
+        <p className="text-sm font-semibold text-[var(--foreground)]">
           {formatAmount(product.amount.value, product.amount.unit)}
         </p>
         {product.minAmount ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p
+            className={`text-xs ${
+              isLowStock ? "text-[var(--danger)]" : "text-[var(--muted)]"
+            }`}
+          >
             Min {formatAmount(product.minAmount.value, product.minAmount.unit)}
           </p>
         ) : (
-          <p className="text-xs text-slate-400 dark:text-slate-500">No min</p>
+          <p className="text-xs text-[var(--muted)]">No min</p>
         )}
       </div>
     </button>
