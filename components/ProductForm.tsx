@@ -96,7 +96,7 @@ export default function ProductForm({
         <div className="calm-form-shell rounded-3xl p-3.5 sm:p-5">
           <div className="calm-form-section calm-form-section-main">
             <div className="calm-form-top flex flex-wrap items-center gap-2.5 pb-2 sm:gap-3 sm:pb-3">
-              <div className="relative w-full sm:flex-1">
+              <div className="calm-form-name-field relative w-full sm:flex-1">
                 <label className="neo-kicker">Product</label>
                 <input
                   value={draft.name}
@@ -109,7 +109,7 @@ export default function ProductForm({
                   }}
                 />
                 {suggestions.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 grid gap-2">
+                  <div className="calm-suggestion-list absolute left-0 right-0 top-[calc(100%+6px)] z-30 grid gap-2">
                     {suggestions.map((product) => (
                       <button
                         key={product._id}

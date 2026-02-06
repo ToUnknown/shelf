@@ -524,6 +524,19 @@ body::after {
   padding-bottom: 0.82rem;
 }
 
+.calm-form-name-field {
+  position: relative;
+  z-index: 0;
+}
+
+.calm-suggestion-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+}
+
 .calm-form-fields {
   padding-top: 0.74rem;
 }
