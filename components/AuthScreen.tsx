@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -18,35 +18,6 @@ type PendingSetup = {
 
 type Tab = "create" | "login" | "member";
 type MemberStep = "email" | "signup" | "signin";
-const tabOrder: Tab[] = ["create", "login", "member"];
-const AUTH_FADE_MS = 190;
-
-const accessHeadlines = [
-  "Ready to restock?",
-  "Let’s check the shelves",
-  "Inventory, but calm",
-  "Enter the stockroom",
-  "Stockroom access",
-  "Open the pantry",
-  "Set your shelves",
-  "Quiet inventory",
-  "Keep it stocked",
-  "Start tracking",
-  "Inventory access",
-  "Household ready",
-  "Let’s get stocked",
-  "Stock check time",
-  "Shelf control",
-  "Your household hub",
-  "Keep tabs on stock",
-  "Lightweight inventory",
-  "Track what matters",
-  "Stay in control",
-  "Fresh stock status",
-  "Stockroom reset",
-  "Monitor the pantry",
-  "Stockroom mode",
-];
 
 export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
   const auth = useConvexAuth();
@@ -56,13 +27,6 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
   const joinHousehold = useMutation(api.users.joinHousehold);
 
   const [tab, setTab] = useState<Tab>("create");
-  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
-  const [leavingTab, setLeavingTab] = useState<Tab | null>(null);
-  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const authStackRef = useRef<HTMLDivElement | null>(null);
-  const authStackRafRef = useRef<number | null>(null);
-  const previousStackHeightRef = useRef<number | null>(null);
-  const [authStackHeight, setAuthStackHeight] = useState<number | null>(null);
   const [pendingSetup, setPendingSetup] = useState<PendingSetup>(null);
 
   const [ownerCreate, setOwnerCreate] = useState({
@@ -78,9 +42,6 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     displayName: "",
     password: "",
   });
-  const [accessHeadline] = useState(
-    () => accessHeadlines[Math.floor(Math.random() * accessHeadlines.length)],
-  );
 
   const [ownerCreateError, setOwnerCreateError] = useState<string | null>(null);
   const [ownerLoginError, setOwnerLoginError] = useState<string | null>(null);
@@ -295,428 +256,318 @@ export default function AuthScreen({ isLoadingUser }: AuthScreenProps) {
     if (auth.isAuthenticated && isLoadingUser) return "Loading your profile...";
     return null;
   }, [auth.isAuthenticated, isLoadingUser, pendingSetup]);
-  const activeTabIndex = Math.max(0, tabOrder.indexOf(tab));
-
-  const handleTabChange = (nextTab: Tab) => {
-    setOwnerCreateError(null);
-    setOwnerLoginError(null);
-    setMemberError(null);
-    if (nextTab === tab) return;
-    if (fadeTimeoutRef.current) {
-      clearTimeout(fadeTimeoutRef.current);
-    }
-    setIsTabTransitioning(true);
-    setLeavingTab(tab);
-    setTab(nextTab);
-    fadeTimeoutRef.current = setTimeout(() => {
-      setLeavingTab(null);
-      setIsTabTransitioning(false);
-      fadeTimeoutRef.current = null;
-    }, AUTH_FADE_MS);
-  };
-
-  useLayoutEffect(() => {
-    const node = authStackRef.current;
-    if (!node || typeof window === "undefined") return;
-
-    const activeTabNode = node.querySelector<HTMLElement>(
-      '.auth-tab[data-active="true"] .auth-tab-content',
-    );
-    const measuredHeight = Math.round(
-      activeTabNode?.scrollHeight ?? node.scrollHeight,
-    );
-
-    if (!window.matchMedia("(max-width: 767px)").matches) {
-      if (authStackRafRef.current !== null) {
-        window.cancelAnimationFrame(authStackRafRef.current);
-        authStackRafRef.current = null;
-      }
-      setAuthStackHeight(null);
-      previousStackHeightRef.current = measuredHeight;
-      return;
-    }
-
-    const nextHeight = measuredHeight;
-    const prevHeight = previousStackHeightRef.current ?? nextHeight;
-    if (authStackHeight === null) {
-      setAuthStackHeight(nextHeight);
-      previousStackHeightRef.current = nextHeight;
-      return;
-    }
-    if (Math.abs(nextHeight - prevHeight) < 1) {
-      previousStackHeightRef.current = nextHeight;
-      return;
-    }
-
-    setAuthStackHeight(prevHeight);
-    if (authStackRafRef.current !== null) {
-      window.cancelAnimationFrame(authStackRafRef.current);
-    }
-    authStackRafRef.current = window.requestAnimationFrame(() => {
-      setAuthStackHeight(nextHeight);
-      authStackRafRef.current = null;
-    });
-    previousStackHeightRef.current = nextHeight;
-  }, [authStackHeight, tab, memberStep, ownerCreateError, ownerLoginError, memberError]);
-
-  useEffect(() => {
-    return () => {
-      if (fadeTimeoutRef.current) {
-        clearTimeout(fadeTimeoutRef.current);
-      }
-      if (authStackRafRef.current !== null) {
-        window.cancelAnimationFrame(authStackRafRef.current);
-        authStackRafRef.current = null;
-      }
-    };
-  }, []);
 
   return (
-    <div className="auth-page flex min-h-[100dvh] items-center overflow-y-auto px-4 py-4 text-[var(--foreground)] sm:px-8 sm:py-6">
-      <div className="auth-shell neo-panel anim-fade-up mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem]">
-        <div className="auth-layout grid min-h-[78dvh] md:grid-cols-[1.2fr_0.95fr]">
-          <section className="auth-hero relative hidden overflow-hidden px-6 py-7 md:block md:border-r md:border-[var(--line)] md:px-8 md:py-9">
-            <span
-              className="neo-orb h-52 w-52"
-              style={{
-                right: "-3.5rem",
-                top: "-4rem",
-                background: "radial-gradient(circle, var(--glow-a), transparent 70%)",
+    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-10 text-slate-900 dark:text-slate-100">
+      <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900/90 sm:p-8 anim-pop">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
+            Shelf
+          </p>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+            Welcome back
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Sign in or create a household account.
+          </p>
+        </div>
+
+        {pendingMessage ? (
+          <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
+            {pendingMessage}
+          </div>
+        ) : null}
+
+        <div className="mt-6 grid grid-cols-3 gap-2">
+          {([
+            { id: "create", label: "Create account" },
+            { id: "login", label: "Log in" },
+            { id: "member", label: "Member" },
+          ] as const).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setTab(item.id);
+                setOwnerCreateError(null);
+                setOwnerLoginError(null);
+                setMemberError(null);
               }}
-            />
-            <span
-              className="neo-orb h-72 w-72"
-              style={{
-                left: "-5rem",
-                bottom: "-8rem",
-                background: "radial-gradient(circle, var(--glow-b), transparent 72%)",
-                animationDelay: "-6s",
-              }}
-            />
-
-            <div className="auth-hero-content">
-              <p className="neo-kicker">Shelf</p>
-              <h1 className="neo-heading mt-2 max-w-xl text-[1.72rem] leading-[0.92] sm:mt-3 sm:text-6xl md:text-7xl">
-                Stock clarity for every home.
-              </h1>
-              <p className="mt-3 max-w-xl text-[0.84rem] leading-relaxed text-[var(--muted)] sm:mt-4 sm:text-base">
-                Track what is available, low, and shared. One private household space
-                that feels calm on phone and desktop.
-              </p>
-              <div className="auth-feature-list mt-5 hidden sm:grid">
-                <p className="auth-feature-item">
-                  <span className="auth-feature-dot" />
-                  Instant shared updates
-                </p>
-                <p className="auth-feature-item">
-                  <span className="auth-feature-dot" />
-                  Invite-only household access
-                </p>
-                <p className="auth-feature-item">
-                  <span className="auth-feature-dot" />
-                  Designed for quick daily edits
-                </p>
-              </div>
-              <div className="auth-mobile-pill-row mt-4 hidden sm:flex">
-                <span className="neo-chip">Private</span>
-                <span className="neo-chip">Realtime</span>
-                <span className="neo-chip">Shared</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="auth-access px-5 py-7 sm:px-7 md:px-8 md:py-9">
-            <div className="auth-access-head">
-              <p className="neo-kicker">Shelf access</p>
-              <span className="auth-access-badge">Secure entry</span>
-            </div>
-            <h2 className="neo-heading mt-2 text-[1.28rem] leading-[0.98] sm:text-4xl">
-              {accessHeadline}
-            </h2>
-            <p className="mt-1 text-[0.78rem] leading-relaxed text-[var(--muted)] sm:mt-2 sm:text-sm">
-              Choose your role to continue.
-            </p>
-
-            {pendingMessage ? (
-              <div className="neo-panel-strong mt-4 rounded-2xl px-3 py-2 text-sm text-[var(--muted)]">
-                {pendingMessage}
-              </div>
-            ) : null}
-
-            <div
-              className="auth-tabs mt-4 rounded-full border border-[var(--line)] sm:mt-5"
-              style={{ background: "color-mix(in oklab, var(--panel) 76%, transparent)" }}
+              className={`rounded-full px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                tab === item.id
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "border border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400"
+              }`}
             >
-              <span
-                className="auth-tab-slider"
-                style={{ transform: `translateX(${activeTabIndex * 100}%)` }}
-                aria-hidden="true"
-              />
-              {([
-                { id: "create", label: "Create" },
-                { id: "login", label: "Login" },
-                { id: "member", label: "Member" },
-              ] as const).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleTabChange(item.id)}
-                  className={`auth-tab-trigger rounded-full px-2 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.1em] transition duration-200 sm:text-xs ${
-                    tab === item.id
-                      ? "text-[var(--primary-contrast)]"
-                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+              {item.label}
+            </button>
+          ))}
+        </div>
 
-            <div
-              ref={authStackRef}
-              className="auth-tab-stack auth-stack-animate auth-forms mt-4 sm:mt-5"
-              data-transitioning={isTabTransitioning}
-              style={authStackHeight !== null ? { height: `${authStackHeight}px` } : undefined}
-            >
-              <div
-                className="auth-tab"
-                data-active={tab === "create"}
-                data-leaving={leavingTab === "create"}
-                aria-hidden={tab !== "create"}
+        <div className="mt-6">
+          {tab === "create" ? (
+            <form onSubmit={handleOwnerCreate} className="grid gap-4">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                  Display name
+                </label>
+                <input
+                  value={ownerCreate.displayName}
+                  onChange={(event) =>
+                    setOwnerCreate((state) => ({
+                      ...state,
+                      displayName: event.target.value,
+                    }))
+                  }
+                  placeholder="name"
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={ownerCreate.email}
+                  onChange={(event) =>
+                    setOwnerCreate((state) => ({
+                      ...state,
+                      email: event.target.value,
+                    }))
+                  }
+                  placeholder="you@example.com"
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={ownerCreate.password}
+                  onChange={(event) =>
+                    setOwnerCreate((state) => ({
+                      ...state,
+                      password: event.target.value,
+                    }))
+                  }
+                  placeholder="Minimum 8 characters"
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+              {ownerCreateError ? (
+                <p className="text-sm text-rose-600 dark:text-rose-400">
+                  {ownerCreateError}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={busy}
+                className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
               >
-                <form onSubmit={handleOwnerCreate} className="auth-tab-content grid gap-4">
+                Create household
+              </button>
+            </form>
+          ) : null}
+
+          {tab === "login" ? (
+            <form onSubmit={handleOwnerLogin} className="grid gap-4">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={ownerLogin.email}
+                  onChange={(event) =>
+                    setOwnerLogin((state) => ({
+                      ...state,
+                      email: event.target.value,
+                    }))
+                  }
+                  placeholder="you@example.com"
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={ownerLogin.password}
+                  onChange={(event) =>
+                    setOwnerLogin((state) => ({
+                      ...state,
+                      password: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+              {ownerLoginError ? (
+                <p className="text-sm text-rose-600 dark:text-rose-400">
+                  {ownerLoginError}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={busy}
+                className="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:border-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:border-white dark:hover:bg-white"
+              >
+                Log in
+              </button>
+            </form>
+          ) : null}
+
+          {tab === "member" ? (
+            <div className="grid gap-4">
+              {memberStep === "email" ? (
+                <form onSubmit={handleMemberContinue} className="grid gap-4">
                   <div>
-                    <label className="neo-kicker">Display name</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      Email
+                    </label>
                     <input
-                      value={ownerCreate.displayName}
+                      type="email"
+                      value={memberEmailInput}
+                      onChange={(event) => setMemberEmailInput(event.target.value)}
+                      placeholder="you@example.com"
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  {memberError ? (
+                    <p className="text-sm text-rose-600 dark:text-rose-400">
+                      {memberError}
+                    </p>
+                  ) : null}
+                  <button
+                    type="submit"
+                    className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 dark:border-slate-700 dark:text-slate-200"
+                  >
+                    Continue
+                  </button>
+                </form>
+              ) : null}
+
+              {memberStep === "signup" ? (
+                <form onSubmit={handleMemberSignup} className="grid gap-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    {memberEmail}
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      Display name
+                    </label>
+                    <input
+                      value={memberForm.displayName}
                       onChange={(event) =>
-                        setOwnerCreate((state) => ({
+                        setMemberForm((state) => ({
                           ...state,
                           displayName: event.target.value,
                         }))
                       }
-                      placeholder="Name"
-                      autoComplete="name"
-                      className="neo-input mt-2"
+                      placeholder="name"
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="neo-kicker">Email</label>
-                    <input
-                      type="email"
-                      value={ownerCreate.email}
-                      onChange={(event) =>
-                        setOwnerCreate((state) => ({
-                          ...state,
-                          email: event.target.value,
-                        }))
-                      }
-                      placeholder="You@example.com"
-                      autoComplete="email"
-                      className="neo-input mt-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="neo-kicker">Password</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      Password
+                    </label>
                     <input
                       type="password"
-                      value={ownerCreate.password}
+                      value={memberForm.password}
                       onChange={(event) =>
-                        setOwnerCreate((state) => ({
+                        setMemberForm((state) => ({
                           ...state,
                           password: event.target.value,
                         }))
                       }
                       placeholder="Minimum 8 characters"
-                      autoComplete="new-password"
-                      className="neo-input mt-2"
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>
-                  {ownerCreateError ? (
-                    <p className="text-sm text-[var(--danger)]">{ownerCreateError}</p>
+                  {memberError ? (
+                    <p className="text-sm text-rose-600 dark:text-rose-400">
+                      {memberError}
+                    </p>
                   ) : null}
-                  <button type="submit" disabled={busy} className="neo-btn w-full">
-                    Create household
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemberStep("email");
+                        setMemberEmail(null);
+                        setMemberError(null);
+                      }}
+                      className="text-sm font-semibold text-slate-500 transition hover:text-slate-700 dark:text-slate-400"
+                    >
+                      Change email
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+                    >
+                      Set password
+                    </button>
+                  </div>
                 </form>
-              </div>
+              ) : null}
 
-              <div
-                className="auth-tab"
-                data-active={tab === "login"}
-                data-leaving={leavingTab === "login"}
-                aria-hidden={tab !== "login"}
-              >
-                <form onSubmit={handleOwnerLogin} className="auth-tab-content grid gap-4">
-                  <div>
-                    <label className="neo-kicker">Email</label>
-                    <input
-                      type="email"
-                      value={ownerLogin.email}
-                      onChange={(event) =>
-                        setOwnerLogin((state) => ({
-                          ...state,
-                          email: event.target.value,
-                        }))
-                      }
-                      placeholder="You@example.com"
-                      autoComplete="username"
-                      className="neo-input mt-2"
-                    />
+              {memberStep === "signin" ? (
+                <form onSubmit={handleMemberSignin} className="grid gap-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    {memberEmail}
                   </div>
                   <div>
-                    <label className="neo-kicker">Password</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      Password
+                    </label>
                     <input
                       type="password"
-                      value={ownerLogin.password}
+                      value={memberForm.password}
                       onChange={(event) =>
-                        setOwnerLogin((state) => ({
+                        setMemberForm((state) => ({
                           ...state,
                           password: event.target.value,
                         }))
                       }
-                      placeholder="Password"
-                      autoComplete="current-password"
-                      className="neo-input mt-2"
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm transition focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>
-                  {ownerLoginError ? (
-                    <p className="text-sm text-[var(--danger)]">{ownerLoginError}</p>
+                  {memberError ? (
+                    <p className="text-sm text-rose-600 dark:text-rose-400">
+                      {memberError}
+                    </p>
                   ) : null}
-                  <button type="submit" disabled={busy} className="neo-btn w-full">
-                    Log in
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemberStep("email");
+                        setMemberEmail(null);
+                        setMemberError(null);
+                      }}
+                      className="text-sm font-semibold text-slate-500 transition hover:text-slate-700 dark:text-slate-400"
+                    >
+                      Change email
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+                    >
+                      Log in
+                    </button>
+                  </div>
                 </form>
-              </div>
-
-              <div
-                className="auth-tab"
-                data-active={tab === "member"}
-                data-leaving={leavingTab === "member"}
-                aria-hidden={tab !== "member"}
-              >
-                <div className="auth-tab-content grid gap-4">
-                  {memberStep === "email" ? (
-                    <form onSubmit={handleMemberContinue} className="grid gap-4">
-                      <div>
-                        <label className="neo-kicker">Email</label>
-                        <input
-                          type="email"
-                          value={memberEmailInput}
-                          onChange={(event) => setMemberEmailInput(event.target.value)}
-                          placeholder="You@example.com"
-                          autoComplete="email"
-                          className="neo-input mt-2"
-                        />
-                      </div>
-                      {memberError ? (
-                        <p className="text-sm text-[var(--danger)]">{memberError}</p>
-                      ) : null}
-                      <button type="submit" className="neo-btn-ghost w-full">
-                        Continue
-                      </button>
-                    </form>
-                  ) : null}
-
-                  {memberStep === "signup" ? (
-                    <form onSubmit={handleMemberSignup} className="grid gap-4">
-                      <div className="neo-chip justify-self-start">{memberEmail}</div>
-                      <div>
-                        <label className="neo-kicker">Display name</label>
-                        <input
-                          value={memberForm.displayName}
-                          onChange={(event) =>
-                            setMemberForm((state) => ({
-                              ...state,
-                              displayName: event.target.value,
-                            }))
-                          }
-                          placeholder="Name"
-                          autoComplete="name"
-                          className="neo-input mt-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="neo-kicker">Password</label>
-                        <input
-                          type="password"
-                          value={memberForm.password}
-                          onChange={(event) =>
-                            setMemberForm((state) => ({
-                              ...state,
-                              password: event.target.value,
-                            }))
-                          }
-                          placeholder="Minimum 8 characters"
-                          autoComplete="new-password"
-                          className="neo-input mt-2"
-                        />
-                      </div>
-                      {memberError ? (
-                        <p className="text-sm text-[var(--danger)]">{memberError}</p>
-                      ) : null}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMemberStep("email");
-                            setMemberEmail(null);
-                            setMemberError(null);
-                          }}
-                          className="neo-btn-ghost"
-                        >
-                          Change email
-                        </button>
-                        <button type="submit" disabled={busy} className="neo-btn">
-                          Set password
-                        </button>
-                      </div>
-                    </form>
-                  ) : null}
-
-                  {memberStep === "signin" ? (
-                    <form onSubmit={handleMemberSignin} className="grid gap-4">
-                      <div className="neo-chip justify-self-start">{memberEmail}</div>
-                      <div>
-                        <label className="neo-kicker">Password</label>
-                        <input
-                          type="password"
-                          value={memberForm.password}
-                          onChange={(event) =>
-                            setMemberForm((state) => ({
-                              ...state,
-                              password: event.target.value,
-                            }))
-                          }
-                          autoComplete="current-password"
-                          className="neo-input mt-2"
-                        />
-                      </div>
-                      {memberError ? (
-                        <p className="text-sm text-[var(--danger)]">{memberError}</p>
-                      ) : null}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMemberStep("email");
-                            setMemberEmail(null);
-                            setMemberError(null);
-                          }}
-                          className="neo-btn-ghost"
-                        >
-                          Change email
-                        </button>
-                        <button type="submit" disabled={busy} className="neo-btn">
-                          Log in
-                        </button>
-                      </div>
-                    </form>
-                  ) : null}
-                </div>
-              </div>
+              ) : null}
             </div>
-          </section>
+          ) : null}
         </div>
       </div>
     </div>
