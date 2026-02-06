@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Product, ProductInput } from "../lib/productTypes";
 import {
   defaultDraft,
@@ -35,6 +36,13 @@ export default function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isNameFocused, setIsNameFocused] = useState(false);
+  const nameFieldRef = useRef<HTMLDivElement | null>(null);
+  const [suggestionOverlayRect, setSuggestionOverlayRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const shortSubmitLabel = submitLabel.split(" ")[0] ?? submitLabel;
   const submitLabelMain = submitLabel.replace(/\s*changes\s*/gi, " ").trim();
@@ -57,6 +65,40 @@ export default function ProductForm({
       .filter((product) => product.name.toLowerCase().includes(nameQuery))
       .slice(0, 5);
   }, [enableSuggestions, existingProducts, isNameFocused, nameQuery, onSelectExisting]);
+  const hasSuggestions = suggestions.length > 0;
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!hasSuggestions) {
+      setSuggestionOverlayRect(null);
+      return;
+    }
+
+    const updateOverlayPosition = () => {
+      const anchor = nameFieldRef.current;
+      if (!anchor) {
+        setSuggestionOverlayRect(null);
+        return;
+      }
+      const rect = anchor.getBoundingClientRect();
+      setSuggestionOverlayRect({
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+      });
+    };
+
+    updateOverlayPosition();
+    window.addEventListener("resize", updateOverlayPosition);
+    window.addEventListener("scroll", updateOverlayPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateOverlayPosition);
+      window.removeEventListener("scroll", updateOverlayPosition, true);
+    };
+  }, [hasSuggestions, draft.name]);
 
   const updateDraft = (patch: Partial<ProductDraft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -96,7 +138,7 @@ export default function ProductForm({
         <div className="calm-form-shell rounded-3xl p-3.5 sm:p-5">
           <div className="calm-form-section calm-form-section-main">
             <div className="calm-form-top flex flex-wrap items-center gap-2.5 pb-2 sm:gap-3 sm:pb-3">
-              <div className="calm-form-name-field relative w-full sm:flex-1">
+              <div ref={nameFieldRef} className="calm-form-name-field relative w-full sm:flex-1">
                 <label className="neo-kicker">Product</label>
                 <input
                   value={draft.name}
@@ -108,28 +150,6 @@ export default function ProductForm({
                     window.setTimeout(() => setIsNameFocused(false), 120);
                   }}
                 />
-                {suggestions.length > 0 ? (
-                  <div className="calm-suggestion-list absolute left-0 right-0 top-[calc(100%+6px)] z-30 grid gap-2">
-                    {suggestions.map((product) => (
-                      <button
-                        key={product._id}
-                        type="button"
-                        onClick={() => onSelectExisting?.(product)}
-                        className="neo-panel-strong calm-suggestion flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-left text-sm text-[var(--muted)] transition hover:-translate-y-0.5 active:scale-[0.99]"
-                      >
-                        <span>
-                          <span className="block font-semibold text-[var(--foreground)]">
-                            {product.name}
-                          </span>
-                          <span className="mt-0.5 block text-[0.65rem] uppercase tracking-[0.14em] text-[var(--muted)]">
-                            Open in edit
-                          </span>
-                        </span>
-                        <span className="text-xs text-[var(--muted)]">{product.tag}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
               <div className="w-full sm:w-40">
                 <label className="neo-kicker">Tag</label>
@@ -142,6 +162,39 @@ export default function ProductForm({
               </div>
             </div>
           </div>
+          {hasSuggestions && isMounted && suggestionOverlayRect
+            ? createPortal(
+                <div
+                  className="calm-suggestion-list calm-suggestion-overlay grid gap-2"
+                  style={{
+                    top: `${suggestionOverlayRect.top}px`,
+                    left: `${suggestionOverlayRect.left}px`,
+                    width: `${suggestionOverlayRect.width}px`,
+                    zIndex: 2147483647,
+                  }}
+                >
+                  {suggestions.map((product) => (
+                    <button
+                      key={product._id}
+                      type="button"
+                      onClick={() => onSelectExisting?.(product)}
+                      className="neo-panel-strong calm-suggestion flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-left text-sm text-[var(--muted)] transition hover:-translate-y-0.5 active:scale-[0.99]"
+                    >
+                      <span>
+                        <span className="block font-semibold text-[var(--foreground)]">
+                          {product.name}
+                        </span>
+                        <span className="mt-0.5 block text-[0.65rem] uppercase tracking-[0.14em] text-[var(--muted)]">
+                          Open in edit
+                        </span>
+                      </span>
+                      <span className="text-xs text-[var(--muted)]">{product.tag}</span>
+                    </button>
+                  ))}
+                </div>,
+                document.body,
+              )
+            : null}
 
           <div className="calm-form-section calm-form-section-stock mt-3 sm:mt-4">
             <div className="flex items-center justify-between gap-2">

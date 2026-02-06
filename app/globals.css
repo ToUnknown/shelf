@@ -513,10 +513,14 @@ body::after {
   border: 0;
   background: transparent;
   padding: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .calm-form-section-stock {
   animation-delay: 85ms;
+  position: relative;
+  z-index: 1;
 }
 
 .calm-form-top {
@@ -535,6 +539,19 @@ body::after {
   right: 0;
   top: calc(100% + 6px);
   z-index: 30;
+}
+
+.calm-suggestion-overlay {
+  position: fixed;
+  right: auto;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.calm-suggestion-overlay .calm-suggestion {
+  pointer-events: auto;
 }
 
 .calm-form-fields {
