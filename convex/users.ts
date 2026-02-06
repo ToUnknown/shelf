@@ -422,22 +422,60 @@ export const listMembers = query({
   args: {},
   handler: async (ctx) => {
     const owner = await requireOwner(ctx);
-    if (!owner.householdId) {
+    const householdId = owner.householdId;
+    if (!householdId) {
       return [];
     }
 
     const users = await ctx.db
       .query("users")
-      .withIndex("by_household", (q) => q.eq("householdId", owner.householdId))
+      .withIndex("by_household", (q) => q.eq("householdId", householdId))
       .collect();
 
-    return users
+    const members = users
       .filter((member) => member.role === "member")
-      .sort((left, right) =>
-        (left.displayName ?? left.email ?? "").localeCompare(
-          right.displayName ?? right.email ?? "",
-        ),
-      );
+      .map((member) => ({
+        type: "member" as const,
+        key: `member:${member._id}`,
+        userId: member._id,
+        displayName: member.displayName ?? null,
+        email: member.email ?? null,
+        statusLabel: null as string | null,
+      }));
+
+    const memberEmails = new Set(
+      members
+        .map((member) => normalizeEmail(member.email ?? ""))
+        .filter((email): email is string => Boolean(email)),
+    );
+
+    const acceptedInvites = await ctx.db
+      .query("memberInvites")
+      .withIndex("by_household_and_invitedAt", (q) => q.eq("householdId", householdId))
+      .order("desc")
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .collect();
+
+    const pendingAcceptedInvites = acceptedInvites
+      .filter((invite) => {
+        const normalizedEmail = normalizeEmail(invite.email);
+        if (!normalizedEmail) return false;
+        return !memberEmails.has(normalizedEmail);
+      })
+      .map((invite) => ({
+        type: "inviteAccepted" as const,
+        key: `invite:${invite._id}`,
+        userId: null as Id<"users"> | null,
+        displayName: null as string | null,
+        email: invite.email,
+        statusLabel: "Invite accepted",
+      }));
+
+    return [...members, ...pendingAcceptedInvites].sort((left, right) =>
+      (left.displayName ?? left.email ?? "").localeCompare(
+        right.displayName ?? right.email ?? "",
+      ),
+    );
   },
 });
 
